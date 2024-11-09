@@ -5,7 +5,7 @@
   compile-option = ""
   description = "适用于仓颉的 glob 库"
   link-option = ""
-  name = "glob_cj"
+  name = "glob"
   output-type = "static"
   override-compile-option = ""
   src-dir = ""

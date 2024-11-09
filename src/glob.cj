@@ -1,4 +1,4 @@
-package glob_cj
+package glob
 
 import std.regex.Regex
 import std.collection.ArrayList
@@ -21,20 +21,45 @@ enum PatternToken {
     | AnyWithin(Array<CharSpecifier>)
     | AnyExcept(Array<CharSpecifier>)
 }
-// cjlint-ignore -end macro
 
-enum MatchResult {
+public struct MatchOptions {
+    /**
+     * 是否以大小写敏感的方式匹配模式。
+     * 目前只考虑 ASCII 字符之间的大/小写关系，
+     * 但将来可能会扩展到适用于 Unicode。
+     */
+    var caseSensitive: Bool = false
+
+    /**
+     * 是否要求路径分隔符字符（例如 Posix 上的 `/`）必须由字面量 `/` 匹配，
+     * 而不是由 `*` 或 `?` 或 `[...]` 匹配。
+     */
+    var requireLiteralSeparator: Bool = false
+
+    /**
+     * 是否要求路径组件的开头是 `.` 字符，必须由字面量 `.` 匹配，
+     * 而不是由 `*` 或 `?` 或 `**` 或 `[...]` 匹配。
+     * 这对于 Unix 系统上被传统认为是隐藏的文件很有用，
+     * 可能希望在列出文件时跳过它们。
+     */
+    var requireLiteralLeadingDot: Bool = false
+}
+
+@Derive[Equatable]
+public enum MatchResult {
     Match
     | SubPatternDoesntMatch
     | EntirePatternDoesntMatch
 }
 
+// cjlint-ignore -end macro
+
 const ERROR_WILDCARDS = "wildcards are either regular `*` or recursive `**`";
 const ERROR_RECURSIVE_WILDCARDS = "recursive wildcards must form a single path component";
 const ERROR_INVALID_RANGE = "invalid range pattern";
 
-class PatternException <: Exception {
-    let pos: Int
+public class PatternException <: Exception {
+    public let pos: Int
 
     public init(pos: Int, message: String) {
         super(message)
@@ -65,12 +90,79 @@ func parseCharSpecifiers(s: Array<Rune>): Array<CharSpecifier> {
     return ret.toArray()
 }
 
-struct Pattern {
+public class CharsIterator <: Iterator<Rune> {
+    let chars: Array<Rune>
+    var i: Int
+
+    init(c: Array<Rune>, i!: Int = 0) {
+        this.chars = c
+        this.i = i
+    }
+
+    public func clone(): CharsIterator {
+        return CharsIterator(this.chars, i: this.i)
+    }
+
+    public func next(): Option<Rune> {
+        if (this.i < this.chars.size) {
+            let c = this.chars[this.i]
+            this.i++
+            return Some(c)
+        } else {
+            return None
+        }
+    }
+}
+
+func charsEq(a: Rune, b: Rune, caseSensitive: Bool): Bool {
+    if (!caseSensitive && a.isAscii() && b.isAscii()) {
+        a.toAsciiLowerCase() == b.toAsciiLowerCase()
+    } else {
+        a == b
+    }
+}
+
+// cjlint-ignore -start !G.FUN.01 fun
+func inCharSpecifiers(cs: Array<CharSpecifier>, c: Rune, options: MatchOptions): Bool {
+    for (spec in cs) {
+        match (spec) {
+            case CharSpecifier.SingleChar(cs) =>
+                if (charsEq(c, cs, options.caseSensitive)) {
+                    return true
+                } else {
+                    continue
+                }
+
+            case CharSpecifier.CharRange(start, end) =>
+                if (!options.caseSensitive && c.isAscii() && start.isAscii() && end.isAscii()) {
+                    let sl = start.toAsciiLowerCase()
+                    let el = end.toAsciiLowerCase()
+
+                    let su = start.toAsciiUpperCase()
+                    let eu = end.toAsciiUpperCase()
+
+                    if (start != su && end != eu) {
+                        let cl = c.toAsciiLowerCase()
+                        if (c >= start && c <= end) {
+                            return true;
+                        }
+                    }
+                }
+
+                if (c >= start && c <= end) {
+                    return true
+                }
+        }
+    }
+
+    return false
+}
+
+public struct Pattern {
     let original: String
     let tokens: ArrayList<PatternToken>
     let isRecursive: Bool
 
-    // cjlint-ignore -start !G.FUN.01 init
     init(pattern: String) {
         let chars = pattern.toRuneArray()
         let tokens = ArrayList<PatternToken>()
@@ -152,5 +244,98 @@ struct Pattern {
         this.tokens = tokens
         this.isRecursive = is_recursive
     }
-    // cjlint-ignore -end init
+
+    public func matches(str: String): Bool {
+        this.matchesWith(str, MatchOptions())
+    }
+
+    public func matchesWith(
+        str: String,
+        options: MatchOptions
+    ) : Bool {
+        this.matchesFrom(true, CharsIterator(str.toRuneArray()), 0, options) == MatchResult.Match
+    }
+
+    public func matchesFrom(
+        followsSeparator: Bool,
+        file: CharsIterator,
+        i: Int,
+        options: MatchOptions
+    ): MatchResult {
+        var ti = i
+        var fs = followsSeparator
+        for (token in this.tokens) {
+            ti++
+            match (token) {
+                case AnySequence | AnyRecursiveSequence =>
+                    match (this.matchesFrom(fs, file, i + ti + 1, options)) {
+                        case MatchResult.SubPatternDoesntMatch => {=>}
+                        case m => return m
+                    }
+
+                    while (let Some(c) <- file.next()) {
+                        if (fs && options.requireLiteralLeadingDot && c == r'.') {
+                            return MatchResult.SubPatternDoesntMatch
+                        }
+                        fs = isSeparator(c)
+                        match (token) {
+                            case PatternToken.AnyRecursiveSequence =>
+                                if (!fs) {
+                                    continue
+                                }
+                            case PatternToken.AnySequence =>
+                                if (options.requireLiteralSeparator && fs) {
+                                    return MatchResult.SubPatternDoesntMatch
+                                }
+                            case _ => {=>}
+                        }
+
+                        match (this.matchesFrom(fs, file.clone(), i + ti + 1, options)) {
+                            case MatchResult.SubPatternDoesntMatch => {=>}
+                            case m => return m
+                        }
+                    }
+                case _ =>
+                    let c = match (file.next()) {
+                        case Some(c) => c
+                        case None => return MatchResult.EntirePatternDoesntMatch
+                    }
+
+                    let is_sep = isSeparator(c)
+
+                    if (!match (token) {
+                        case PatternToken.AnyChar | PatternToken.AnyWithin(_) | AnyExcept(_) =>
+                            if ((options.requireLiteralSeparator && is_sep) || (fs && options.requireLiteralLeadingDot &&
+                                c == r'.')) {
+                                false
+                            } else {
+                                true
+                            }
+                        case _ => true
+                    }) {
+                        return MatchResult.SubPatternDoesntMatch
+                    }
+
+                    if (!match(token) {
+                        case PatternToken.AnyChar => true
+                        case PatternToken.AnyWithin(cs) => inCharSpecifiers(cs, c, options)
+                        case PatternToken.AnyExcept(cs) => !inCharSpecifiers(cs, c, options)
+                        case PatternToken.Char(tc) => charsEq(c, tc, options.caseSensitive)
+                        case _ => throw Exception("unreachable")
+
+                    }) {
+                        return MatchResult.SubPatternDoesntMatch
+                    }
+                    fs = is_sep
+            }
+        }
+
+        if (file.next().isNone()) {
+            return MatchResult.Match
+        } else {
+            return MatchResult.SubPatternDoesntMatch
+        }
+    }
 }
+
+// cjlint-ignore -end fun
