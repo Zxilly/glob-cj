@@ -143,7 +143,7 @@ func inCharSpecifiers(cs: Array<CharSpecifier>, c: Rune, options: MatchOptions):
 
                     if (start != su && end != eu) {
                         let cl = c.toAsciiLowerCase()
-                        if (c >= start && c <= end) {
+                        if (cl >= start && cl <= end) {
                             return true;
                         }
                     }

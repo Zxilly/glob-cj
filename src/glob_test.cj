@@ -106,4 +106,54 @@ class PatternTests {
         @Assert(pat6.matches("ab.c"), false)
         @Assert(pat6.matches("abc/ab.c"), false)
     }
+
+    @TestCase
+    func testRangePattern() {
+        let pat = Pattern("a[0-9]b")
+        for (i in 0..10) {
+            @Assert(pat.matches("a${i}b"), true)
+        }
+        @Assert(pat.matches("a_b"), false)
+
+        let pat2 = Pattern("a[!0-9]b")
+        for (i in 0..10) {
+            @Assert(pat2.matches("a${i}b"), false)
+        }
+        @Assert(pat2.matches("a_b"), true)
+
+        let pats = ["[a-z123]", "[1a-z23]", "[123a-z]"]
+        for (p in pats) {
+            let pat = Pattern(p)
+            for (c in "abcdefghijklmnopqrstuvwxyz".toRuneArray()) {
+                @Assert(pat.matches(String(c)), true)
+            }
+            for (c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toRuneArray()) {
+                var options = MatchOptions()
+                options.caseSensitive = false
+                @Assert(pat.matchesWith(String(c), options), true)
+            }
+            @Assert(pat.matches("1"), true)
+            @Assert(pat.matches("2"), true)
+            @Assert(pat.matches("3"), true)
+        }
+
+        let pats2 = ["[abc-]", "[-abc]", "[a-c-]"]
+        for (p in pats2) {
+            let pat = Pattern(p)
+            @Assert(pat.matches("a"), true)
+            @Assert(pat.matches("b"), true)
+            @Assert(pat.matches("c"), true)
+            @Assert(pat.matches("-"), true)
+            @Assert(pat.matches("d"), false)
+        }
+
+        let pat3 = Pattern("[2-1]")
+        @Assert(pat3.matches("1"), false)
+        @Assert(pat3.matches("2"), false)
+
+        let pat4 = Pattern("[-]")
+        @Assert(pat4.matches("-"), true)
+        let pat5 = Pattern("[!-]")
+        @Assert(pat5.matches("-"), false)
+    }
 }
