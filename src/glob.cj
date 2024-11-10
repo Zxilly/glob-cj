@@ -72,7 +72,7 @@ public class PatternException <: Exception {
 }
 
 func isSeparator(c: Rune): Bool {
-    return Path.Separator == c.toString()
+    return c.isAscii() && (c == r'/' || c == r'\\')
 }
 
 func parseCharSpecifiers(s: Array<Rune>): Array<CharSpecifier> {
@@ -262,13 +262,11 @@ public struct Pattern {
         i: Int,
         options: MatchOptions
     ): MatchResult {
-        var ti = i
         var fs = followsSeparator
-        for (token in this.tokens) {
-            ti++
+        for ((ti, token) in this.tokens[i..].iterator().enumerate()) {
             match (token) {
                 case AnySequence | AnyRecursiveSequence =>
-                    match (this.matchesFrom(fs, file, i + ti + 1, options)) {
+                    match (this.matchesFrom(fs, file.clone(), i + ti + 1, options)) {
                         case MatchResult.SubPatternDoesntMatch => {=>}
                         case m => return m
                     }
