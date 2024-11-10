@@ -156,4 +156,106 @@ class PatternTests {
         let pat5 = Pattern("[!-]")
         @Assert(pat5.matches("-"), false)
     }
+
+    @TestCase
+    func testPatternMatches() {
+        let txtPat = Pattern("*hello.txt")
+        @Assert(txtPat.matches("hello.txt"), true)
+        @Assert(txtPat.matches("gareth_says_hello.txt"), true)
+        @Assert(txtPat.matches("some/path/to/hello.txt"), true)
+        @Assert(txtPat.matches("some\\path\\to\\hello.txt"), true)
+        @Assert(txtPat.matches("/an/absolute/path/to/hello.txt"), true)
+        @Assert(txtPat.matches("hello.txt-and-then-some"), false)
+        @Assert(txtPat.matches("goodbye.txt"), false)
+
+        let dirPat = Pattern("*some/path/to/hello.txt")
+        @Assert(dirPat.matches("some/path/to/hello.txt"), true)
+        @Assert(dirPat.matches("a/bigger/some/path/to/hello.txt"), true)
+        @Assert(dirPat.matches("some/path/to/hello.txt-and-then-some"), false)
+        @Assert(dirPat.matches("some/other/path/to/hello.txt"), false)
+    }
+
+    @TestCase
+    func testPatternMatchesWith() {
+        let pat = Pattern("aBcDeFg")
+        var options = MatchOptions()
+        options.caseSensitive = false
+        @Assert(pat.matchesWith("aBcDeFg", options), true)
+        @Assert(pat.matchesWith("abcdefg", options), true)
+        @Assert(pat.matchesWith("ABCDEFG", options), true)
+        @Assert(pat.matchesWith("AbCdEfG", options), true)
+    }
+
+    @TestCase
+    func testPatternMatchesWithLiteralSeparator() {
+        let pat = Pattern("a/b/c")
+        var options = MatchOptions()
+        options.requireLiteralSeparator = true
+        @Assert(pat.matchesWith("a/b/c", options), true)
+        @Assert(pat.matchesWith("a/b/c/d", options), false)
+        @Assert(pat.matchesWith("a/b/cd", options), false)
+        @Assert(pat.matchesWith("a/b/c/", options), false)
+        @Assert(pat.matchesWith("a/b/c//", options), false)
+        @Assert(pat.matchesWith("a/b/c//d", options), false)
+    }
+
+    @TestCase
+    func testPatternMatchesRequireLiteralSeparator() {
+        var optionsRequireLiteral = MatchOptions()
+        optionsRequireLiteral.caseSensitive = true
+        optionsRequireLiteral.requireLiteralSeparator = true
+        optionsRequireLiteral.requireLiteralLeadingDot = false
+
+        var optionsNotRequireLiteral = MatchOptions()
+        optionsNotRequireLiteral.caseSensitive = true
+        optionsNotRequireLiteral.requireLiteralSeparator = false
+        optionsNotRequireLiteral.requireLiteralLeadingDot = false
+
+        @Assert(Pattern("abc/def").matchesWith("abc/def", optionsRequireLiteral), true)
+        @Assert(Pattern("abc?def").matchesWith("abc/def", optionsRequireLiteral), false)
+        @Assert(Pattern("abc*def").matchesWith("abc/def", optionsRequireLiteral), false)
+        @Assert(Pattern("abc[/]def").matchesWith("abc/def", optionsRequireLiteral), false)
+
+        @Assert(Pattern("abc/def").matchesWith("abc/def", optionsNotRequireLiteral), true)
+        @Assert(Pattern("abc?def").matchesWith("abc/def", optionsNotRequireLiteral), true)
+        @Assert(Pattern("abc*def").matchesWith("abc/def", optionsNotRequireLiteral), true)
+        @Assert(Pattern("abc[/]def").matchesWith("abc/def", optionsNotRequireLiteral), true)
+    }
+
+    @TestCase
+    func testPatternMatchesWithLiteralLeadingDot() {
+        var optionsRequireLiteralLeadingDot = MatchOptions()
+        optionsRequireLiteralLeadingDot.caseSensitive = true
+        optionsRequireLiteralLeadingDot.requireLiteralSeparator = false
+        optionsRequireLiteralLeadingDot.requireLiteralLeadingDot = true
+
+        var optionsNotRequireLiteralLeadingDot = MatchOptions()
+        optionsNotRequireLiteralLeadingDot.caseSensitive = true
+        optionsNotRequireLiteralLeadingDot.requireLiteralSeparator = false
+        optionsNotRequireLiteralLeadingDot.requireLiteralLeadingDot = false
+
+        @Assert(Pattern("*.txt").matchesWith(".hello.txt", optionsNotRequireLiteralLeadingDot), true)
+        @Assert(Pattern("*.txt").matchesWith(".hello.txt", optionsRequireLiteralLeadingDot), false)
+
+        @Assert(Pattern(".*.*").matchesWith(".hello.txt", optionsNotRequireLiteralLeadingDot), true)
+        @Assert(Pattern(".*.*").matchesWith(".hello.txt", optionsRequireLiteralLeadingDot), true)
+
+        @Assert(Pattern("aaa/bbb/*").matchesWith("aaa/bbb/.ccc", optionsNotRequireLiteralLeadingDot), true)
+        @Assert(Pattern("aaa/bbb/*").matchesWith("aaa/bbb/.ccc", optionsRequireLiteralLeadingDot), false)
+
+        @Assert(Pattern("aaa/bbb/*").matchesWith("aaa/bbb/c.c.c.", optionsNotRequireLiteralLeadingDot), true)
+        @Assert(Pattern("aaa/bbb/*").matchesWith("aaa/bbb/c.c.c.", optionsRequireLiteralLeadingDot), true)
+
+        @Assert(Pattern("aaa/bbb/.*").matchesWith("aaa/bbb/.ccc", optionsNotRequireLiteralLeadingDot), true)
+        @Assert(Pattern("aaa/bbb/.*").matchesWith("aaa/bbb/.ccc", optionsRequireLiteralLeadingDot), true)
+
+        @Assert(Pattern("aaa/?bbb").matchesWith("aaa/.bbb", optionsNotRequireLiteralLeadingDot), true)
+        @Assert(Pattern("aaa/?bbb").matchesWith("aaa/.bbb", optionsRequireLiteralLeadingDot), false)
+
+        @Assert(Pattern("aaa/[.]bbb").matchesWith("aaa/.bbb", optionsNotRequireLiteralLeadingDot), true)
+        @Assert(Pattern("aaa/[.]bbb").matchesWith("aaa/.bbb", optionsRequireLiteralLeadingDot), false)
+
+        @Assert(Pattern("**/*").matchesWith(".bbb", optionsNotRequireLiteralLeadingDot), true)
+        @Assert(Pattern("**/*").matchesWith(".bbb", optionsRequireLiteralLeadingDot), false)
+    }
 }
