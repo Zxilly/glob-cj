@@ -32,7 +32,7 @@ def process_gcov_files(directory: str) -> list[str]:
         
         content[0] = fl
 
-        with open(file_path, 'w') as file:
+        with open(file_path, 'w', encoding="utf-8") as file:
             file.writelines(content)
         outs.append(os.path.abspath(file_path))
     return outs
