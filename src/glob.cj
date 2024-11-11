@@ -2,7 +2,7 @@ package glob
 
 import std.regex.Regex
 import std.collection.ArrayList
-import std.fs.{Path}
+import std.fs.{Directory, Path, FileInfo, FSException}
 import std.deriving.Derive
 
 // cjlint-ignore -start !G.OPR.01 !G.NAM.04 !G.ITF.04 macro
@@ -252,7 +252,7 @@ public struct Pattern {
     public func matchesWith(
         str: String,
         options: MatchOptions
-    ) : Bool {
+    ): Bool {
         this.matchesFrom(true, CharsIterator(str.toRuneArray()), 0, options) == MatchResult.Match
     }
 
@@ -314,13 +314,12 @@ public struct Pattern {
                         return MatchResult.SubPatternDoesntMatch
                     }
 
-                    if (!match(token) {
+                    if (!match (token) {
                         case PatternToken.AnyChar => true
                         case PatternToken.AnyWithin(cs) => inCharSpecifiers(cs, c, options)
                         case PatternToken.AnyExcept(cs) => !inCharSpecifiers(cs, c, options)
                         case PatternToken.Char(tc) => charsEq(c, tc, options.caseSensitive)
                         case _ => throw Exception("unreachable")
-
                     }) {
                         return MatchResult.SubPatternDoesntMatch
                     }
@@ -334,6 +333,334 @@ public struct Pattern {
             return MatchResult.SubPatternDoesntMatch
         }
     }
+
+    func toCharString(): Option<String> {
+        let ret = StringBuilder()
+        for (token in this.tokens) {
+            match (token) {
+                case Char(c) => ret.append(c)
+                case _ => return None
+            }
+        }
+        return ret.toString()
+    }
+}
+
+func checkWindowsVerbatim(path: String): Bool {
+    if (path.size < 4) {
+        return false
+    }
+    let chars = path.toRuneArray()
+
+    let c0 = chars[0]
+    let c1 = chars[1]
+    let c2 = chars[2]
+    let c3 = chars[3]
+
+    // \\.\
+    if (c0 == r'\\' && c1 == r'\\' && c2 == r'.' && c3 == r'\\') {
+        return true
+    }
+    // \\?\
+    if (c0 == r'\\' && c1 == r'\\' && c2 == r'?' && c3 == r'\\') {
+        return true
+    }
+
+    return false
+}
+
+func pathOk(path: Path): Bool {
+    try {
+        FileInfo(path)
+        return true
+    } catch (e: FSException) {
+        return false
+    }
+}
+
+public struct PathWrapper {
+    public let path: Path
+    let isDirectory: Bool
+
+    init(path: Path) {
+        this.path = path
+        this.isDirectory = FileInfo(path).isDirectory()
+    }
+
+    init(path: Path, isDirectory: Bool) {
+        this.path = path
+        this.isDirectory = isDirectory
+    }
+}
+
+func fillTodo(
+    todo: ArrayList<(PathWrapper, Int64)>,
+    patterns: Array<Pattern>,
+    idx: Int,
+    path: PathWrapper,
+    options: MatchOptions
+): Unit {
+    let pattern = patterns[idx]
+    let isDir = path.isDirectory
+    let curDir = path.path.toString() == "."
+
+    let add = {
+        todo: ArrayList<(PathWrapper, Int64)>, nextPath: PathWrapper => if (idx + 1 == patterns.size) {
+            todo.append((nextPath, Int64.Max))
+        } else {
+            fillTodo(todo, patterns, idx + 1, nextPath, options)
+        }
+    }
+
+    match (pattern.toCharString()) {
+        case Some(s) =>
+            let special = s == "." || s == ".."
+            let nextPath = if (curDir) {
+                Path(s)
+            } else {
+                path.path.join(s)
+            }
+            let nextPathWrapper = PathWrapper(nextPath)
+            if ((special && isDir) || (!special && pathOk(nextPath))) {
+                add(todo, nextPathWrapper)
+            }
+        case None =>
+            if (isDir) {
+                let dir = Directory(path.path)
+                let dirs = ArrayList<PathWrapper>()
+                for (e in dir.iterator()) {
+                    if (curDir) {
+                        dirs.append(PathWrapper(Path(e.path.fileName), e.isDirectory()))
+                    } else {
+                        dirs.append(PathWrapper(e.path, e.isDirectory()))
+                    }
+                }
+                var children = dirs.iterator()
+                if (options.requireLiteralLeadingDot) {
+                    children = children.filter {
+                        c => !(c.path.fileName.startsWith("."))
+                    }
+                }
+                let cc = ArrayList<PathWrapper>()
+                for (c in children) {
+                    cc.append(c)
+                }
+                cc.sortBy {
+                    l: PathWrapper, r: PathWrapper => if (l.path.fileName > r.path.fileName) {
+                        Ordering.GT
+                    } else if (l.path.fileName < r.path.fileName) {
+                        Ordering.LT
+                    } else {
+                        Ordering.EQ
+                    }
+                }
+
+                for (c in cc) {
+                    todo.append((c, idx))
+                }
+
+                if (!pattern.tokens.isEmpty() && pattern.tokens[0] == PatternToken.Char(r'.')) {
+                    for (sp in [".", ".."]) {
+                        if (pattern.matchesWith(sp, options)) {
+                            add(todo, PathWrapper(path.path.join(sp)))
+                        }
+                    }
+                }
+            }
+    }
+}
+
+public class Paths <: Iterator<Path> {
+    let dirPatterns: Array<Pattern>
+    let requireDir: Bool
+    let options: MatchOptions
+    let todo: ArrayList<(PathWrapper, Int64)>
+    let scope: PathWrapper
+    var initialized: Bool = false
+
+    init(
+        dirPatterns: Array<Pattern>,
+        requireDir: Bool,
+        options: MatchOptions,
+        todo: ArrayList<(PathWrapper, Int64)>,
+        scope: PathWrapper
+    ) {
+        this.dirPatterns = dirPatterns
+        this.requireDir = requireDir
+        this.options = options
+        this.todo = todo
+        this.scope = scope
+    }
+
+    public func next(): Option<Path> {
+        if (!this.initialized) {
+            this.initialized = true
+            if (!this.dirPatterns.isEmpty()) {
+                fillTodo(this.todo, this.dirPatterns, 0, this.scope, this.options)
+            }
+        }
+        while (true) {
+            if (this.dirPatterns.isEmpty() || this.todo.isEmpty()) {
+                return None
+            }
+
+            let t = this.todo.remove(this.todo.size - 1)
+            let path = t[0]
+            var idx = t[1]
+            let vv = this.todo.size
+
+            if (idx == Int64.Max) {
+                if (this.requireDir && !path.isDirectory) {
+                    continue
+                }
+                return Some(path.path)
+            }
+
+            if (this.dirPatterns[idx].isRecursive) {
+                var next = idx
+                while (next + 1 < this.dirPatterns.size && this.dirPatterns[next + 1].isRecursive) {
+                    next++
+                }
+
+                if (path.isDirectory) {
+                    fillTodo(
+                        this.todo,
+                        this.dirPatterns,
+                        next,
+                        path,
+                        this.options
+                    )
+
+                    if (next == this.dirPatterns.size - 1) {
+                        return Some(path.path)
+                    } else {
+                        idx = next + 1
+                    }
+                } else if (next == this.dirPatterns.size - 1) {
+                    continue
+                } else {
+                    idx = next + 1
+                }
+            }
+
+            if (this.dirPatterns[idx].matchesWith(path.path.fileName, this.options)) {
+                if (idx == this.dirPatterns.size - 1) {
+                    if (!this.requireDir || path.isDirectory) {
+                        return Some(path.path)
+                    }
+                } else {
+                    fillTodo(
+                        this.todo,
+                        this.dirPatterns,
+                        idx + 1,
+                        path,
+                        this.options
+                    )
+                }
+            }
+        }
+
+        None
+    }
+}
+
+func getRoot(pattern: String): Option<String> {
+    let chars = pattern.toRuneArray()
+
+    if (chars.size == 0) {
+        return ""
+    }
+
+    if (chars[0] == r'/') {
+        return "/"
+    }
+
+    if (chars.size >= 2) {
+        if (chars[0].isAsciiLetter() && chars[1] == r':') {
+            return pattern[0..2] + "\\"
+        }
+    }
+
+    None
+}
+
+extend String {
+    func split(checker: (Rune) -> Bool): Array<String> {
+        let chars = this.toRuneArray()
+        let ret = ArrayList<String>()
+        var start = 0
+        var i = 0
+
+        while (i < chars.size) {
+            if (checker(chars[i])) {
+                if (start < i) {
+                    ret.append(this[start..i])
+                }
+                start = i + 1
+            }
+            i++
+        }
+
+        if (start < i) {
+            ret.append(this[start..i])
+        }
+
+        return ret.toArray()
+    }
+}
+
+public func glob(pattern: String): Paths {
+    globWith(pattern, MatchOptions())
+}
+
+public func globWith(pattern: String, options: MatchOptions): Paths {
+    let p = Pattern(pattern)
+
+    if (checkWindowsVerbatim(pattern)) {
+        throw PatternException(0, "verbatim paths are not supported")
+    }
+
+    var root: String
+    var foundRoot = false
+
+    match (getRoot(pattern)) {
+        case Some(r) =>
+            root = r
+            foundRoot = true
+        case None =>
+            root = "."
+            foundRoot = false
+    }
+
+    let dirPatterns = ArrayList<Pattern>()
+    let skip = if (foundRoot) {
+        root.size
+    } else {
+        0
+    }
+    let components = pattern[(min(skip, pattern.size))..].split(isSeparator)
+    for (c in components) {
+        dirPatterns.append(Pattern(c))
+    }
+
+    if (foundRoot && root.size == pattern.size) {
+        dirPatterns.append(Pattern(""))
+    }
+
+    let lastIsSeparator = if (pattern.size > 0) {
+        let ra = pattern.toRuneArray()
+        isSeparator(ra[ra.size - 1])
+    } else {
+        false
+    }
+
+    return Paths(
+        dirPatterns.toArray(),
+        lastIsSeparator,
+        options,
+        ArrayList<(PathWrapper, Int64)>(),
+        PathWrapper(Path(root))
+    )
 }
 
 // cjlint-ignore -end fun

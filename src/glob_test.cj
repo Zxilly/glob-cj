@@ -258,4 +258,12 @@ class PatternTests {
         @Assert(Pattern("**/*").matchesWith(".bbb", optionsNotRequireLiteralLeadingDot), true)
         @Assert(Pattern("**/*").matchesWith(".bbb", optionsRequireLiteralLeadingDot), false)
     }
+
+    @TestCase
+    func aa() {
+        let a = glob(#"T:\cj\cangjie-0.56.4-docs-html\cjnative\**\*.html"#)
+        for (i in a) {
+            println(i)
+        }
+    }
 }
