@@ -11,14 +11,14 @@ class PatternTests {
         @Assert(p1.matches("a_b"), true)
 
         let e = @AssertThrows[PatternException]({
-            Pattern("a/**b")
+            let _ = Pattern("a/**b")
         })
         @Assert(e.pos, 4)
     }
 
     func assertInitException(pattern: String, pos: Int) {
         let e = @AssertThrows[PatternException]({
-            Pattern(pattern)
+            let _ = Pattern(pattern)
         })
         @Assert(e.pos, pos)
     }

@@ -138,12 +138,12 @@ func inCharSpecifiers(cs: Array<CharSpecifier>, c: Rune, options: MatchOptions):
                     let sl = start.toAsciiLowerCase()
                     let el = end.toAsciiLowerCase()
 
-                    let su = start.toAsciiUpperCase()
-                    let eu = end.toAsciiUpperCase()
+                    let su = sl.toAsciiUpperCase()
+                    let eu = el.toAsciiUpperCase()
 
-                    if (start != su && end != eu) {
+                    if (sl != su && el != eu) {
                         let cl = c.toAsciiLowerCase()
-                        if (cl >= start && cl <= end) {
+                        if (cl >= sl && cl <= el) {
                             return true;
                         }
                     }
@@ -192,9 +192,8 @@ public struct Pattern {
                                 true
                             } else if (i == chars.size) {
                                 true
-                            } else {
-                                throw PatternException(i, ERROR_RECURSIVE_WILDCARDS)
                             }
+                            throw PatternException(i, ERROR_RECURSIVE_WILDCARDS)
                         } else {
                             throw PatternException(old - 1, ERROR_RECURSIVE_WILDCARDS)
                         }
@@ -213,7 +212,7 @@ public struct Pattern {
                 case r'[' =>
                     if (i + 4 <= chars.size && chars[i + 1] == r'!') {
                         match (chars[i + 3..].indexOf(r']')) {
-                            case None => {=>}
+                            case None => ()
                             case Some(j) =>
                                 let subChars = chars[i + 2..i + 3 + j]
                                 let cs = parseCharSpecifiers(subChars)
@@ -223,7 +222,7 @@ public struct Pattern {
                         }
                     } else if (i + 3 <= chars.size && chars[i + 1] != r'!') {
                         match (chars[i + 2..].indexOf(r']')) {
-                            case None => {=>}
+                            case None => ()
                             case Some(j) =>
                                 let subChars = chars[i + 1..i + 2 + j]
                                 let cs = parseCharSpecifiers(subChars)
@@ -267,7 +266,7 @@ public struct Pattern {
             match (token) {
                 case AnySequence | AnyRecursiveSequence =>
                     match (this.matchesFrom(fs, file.clone(), i + ti + 1, options)) {
-                        case MatchResult.SubPatternDoesntMatch => {=>}
+                        case MatchResult.SubPatternDoesntMatch => ()
                         case m => return m
                     }
 
@@ -285,11 +284,11 @@ public struct Pattern {
                                 if (options.requireLiteralSeparator && fs) {
                                     return MatchResult.SubPatternDoesntMatch
                                 }
-                            case _ => {=>}
+                            case _ => ()
                         }
 
                         match (this.matchesFrom(fs, file.clone(), i + ti + 1, options)) {
-                            case MatchResult.SubPatternDoesntMatch => {=>}
+                            case MatchResult.SubPatternDoesntMatch => ()
                             case m => return m
                         }
                     }
@@ -371,7 +370,7 @@ func checkWindowsVerbatim(path: String): Bool {
 
 func pathOk(path: Path): Bool {
     try {
-        FileInfo(path)
+        let _ = FileInfo(path)
         return true
     } catch (e: FSException) {
         return false
@@ -507,7 +506,6 @@ public class Paths <: Iterator<Path> {
             let t = this.todo.remove(this.todo.size - 1)
             let path = t[0]
             var idx = t[1]
-            let vv = this.todo.size
 
             if (idx == Int64.Max) {
                 if (this.requireDir && !path.isDirectory) {

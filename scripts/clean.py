@@ -7,7 +7,7 @@ def process_gcov_files(directory: str) -> list[str]:
     outs = []
 
     for file_path in glob.glob(os.path.join(directory, '**', '*.gcov'), recursive=True):
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding="utf-8") as file:
             content = file.readlines()
 
         if len(content) == 0:
