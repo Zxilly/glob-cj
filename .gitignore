@@ -2,4 +2,5 @@
 .vscode/
 target/
 cov_output/
+html/
 *.macrocall
