@@ -192,8 +192,9 @@ public struct Pattern {
                                 true
                             } else if (i == chars.size) {
                                 true
+                            } else {
+                                throw PatternException(i, ERROR_RECURSIVE_WILDCARDS)
                             }
-                            throw PatternException(i, ERROR_RECURSIVE_WILDCARDS)
                         } else {
                             throw PatternException(old - 1, ERROR_RECURSIVE_WILDCARDS)
                         }
