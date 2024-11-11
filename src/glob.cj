@@ -609,12 +609,23 @@ extend String {
     }
 }
 
+/** 返回一个迭代器，使用默认匹配选项生成与给定模式匹配的所有 Path。 
+ * 这些路径可以是绝对路径，也可以是相对于当前工作目录的相对路径。 
+ * 
+ * 如果模式无效，则可能会引发 PatternException。
+ */
 public func glob(pattern: String): Paths {
     globWith(pattern, MatchOptions())
 }
 
+/** 返回一个迭代器，使用给定的匹配选项生成与给定模式匹配的所有 Path。 
+ * 这些路径可以是绝对路径，也可以是相对于当前工作目录的相对路径。 
+ * 此函数允许您指定匹配选项，例如大小写敏感性。
+ * 
+ * 如果模式无效，则可能会引发 PatternException。
+ */
 public func globWith(pattern: String, options: MatchOptions): Paths {
-    let p = Pattern(pattern)
+    Pattern(pattern)
 
     if (checkWindowsVerbatim(pattern)) {
         throw PatternException(0, "verbatim paths are not supported")

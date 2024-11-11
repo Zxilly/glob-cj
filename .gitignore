@@ -1,4 +1,5 @@
 .cache/
 .vscode/
 target/
+cov_output/
 *.macrocall

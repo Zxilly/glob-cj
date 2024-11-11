@@ -260,10 +260,11 @@ class PatternTests {
     }
 
     @TestCase
-    func aa() {
-        let a = glob(#"T:\cj\cangjie-0.56.4-docs-html\cjnative\**\*.html"#)
-        for (i in a) {
-            println(i)
-        }
+    func testGlob() {
+        let g1 = glob("/")
+        @Assert(g1.next().isSome(), true)
+
+        let g2 = glob("src/*")
+        @Assert(g2.next().isSome(), true)
     }
 }
