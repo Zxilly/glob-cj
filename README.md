@@ -6,6 +6,29 @@
 
 适用于仓颉的 glob 库，参照 [glob](https://github.com/rust-lang/glob) 开发
 
+## 用法
+
+在依赖中添加：
+
+```toml
+[dependencies]
+glob = { git = "https://github.com/Zxilly/glob-cj.git", branch = "master" }
+```
+
+然后在代码中使用：
+
+```cangjie
+import glob
+
+main(): Int64 {
+    for (i in glob.glob("*")) {
+        println(i)
+    }
+
+    return 0
+}
+```
+
 ## 文档
 
 请查看 [文档](https://glob.cj.zxilly.dev)
