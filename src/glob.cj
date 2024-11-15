@@ -426,9 +426,9 @@ func fillTodo(
             }
         case None =>
             if (isDir) {
-                let dir = Directory(path.path)
+                let dirFiles = Directory.readFrom(path.path)
                 let dirs = ArrayList<PathWrapper>()
-                for (e in dir.iterator()) {
+                for (e in dirFiles) {
                     if (curDir) {
                         dirs.append(PathWrapper(Path(e.path.fileName), e.isDirectory()))
                     } else {
