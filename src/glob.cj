@@ -624,7 +624,7 @@ public func glob(pattern: String): Paths {
  * 如果模式无效，则可能会引发 PatternException。
  */
 public func globWith(pattern: String, options: MatchOptions): Paths {
-    Pattern(pattern)
+    let _ = Pattern(pattern)
 
     if (checkWindowsVerbatim(pattern)) {
         throw PatternException(0, "verbatim paths are not supported")
