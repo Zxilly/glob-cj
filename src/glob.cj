@@ -28,13 +28,13 @@ public struct MatchOptions {
      * 目前只考虑 ASCII 字符之间的大/小写关系，
      * 但将来可能会扩展到适用于 Unicode。
      */
-    var caseSensitive: Bool = false
+    public var caseSensitive: Bool = false
 
     /**
      * 是否要求路径分隔符字符（例如 Posix 上的 `/`）必须由字面量 `/` 匹配，
      * 而不是由 `*` 或 `?` 或 `[...]` 匹配。
      */
-    var requireLiteralSeparator: Bool = false
+    public var requireLiteralSeparator: Bool = false
 
     /**
      * 是否要求路径组件的开头是 `.` 字符，必须由字面量 `.` 匹配，
@@ -42,7 +42,7 @@ public struct MatchOptions {
      * 这对于 Unix 系统上被传统认为是隐藏的文件很有用，
      * 可能希望在列出文件时跳过它们。
      */
-    var requireLiteralLeadingDot: Bool = false
+    public var requireLiteralLeadingDot: Bool = false
 }
 
 @Derive[Equatable]
