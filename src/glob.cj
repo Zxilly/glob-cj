@@ -369,15 +369,6 @@ func checkWindowsVerbatim(path: String): Bool {
     return false
 }
 
-func pathOk(path: Path): Bool {
-    try {
-        let _ = FileInfo(path)
-        return true
-    } catch (e: FSException) {
-        return false
-    }
-}
-
 public struct PathWrapper {
     public let path: Path
     let isDirectory: Bool
