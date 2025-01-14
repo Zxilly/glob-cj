@@ -80,10 +80,10 @@ func parseCharSpecifiers(s: Array<Rune>): Array<CharSpecifier> {
     var i = 0
     while (i < s.size) {
         if (i + 3 <= s.size && s[i + 1] == r'-') {
-            ret.append(CharSpecifier.CharRange(s[i], s[i + 2]))
+            ret.add(CharSpecifier.CharRange(s[i], s[i + 2]))
             i += 3
         } else {
-            ret.append(CharSpecifier.SingleChar(s[i]))
+            ret.add(CharSpecifier.SingleChar(s[i]))
             i += 1
         }
     }
@@ -165,14 +165,14 @@ public struct Pattern {
 
     init(pattern: String) {
         let chars = pattern.toRuneArray()
-        let tokens = ArrayList<PatternToken>()
+        tokens = ArrayList<PatternToken>()
         var is_recursive = false
         var i = 0
 
         while (i < chars.size) {
             match (chars[i]) {
                 case r'?' =>
-                    tokens.append(PatternToken.AnyChar)
+                    tokens.add(PatternToken.AnyChar)
                     i++
                 case r'*' =>
                     let old = i
@@ -204,11 +204,11 @@ public struct Pattern {
 
                             if (!(tokens_len > 1 && tokens.get(tokens_len - 1) == PatternToken.AnyRecursiveSequence)) {
                                 is_recursive = true
-                                tokens.append(PatternToken.AnyRecursiveSequence)
+                                tokens.add(PatternToken.AnyRecursiveSequence)
                             }
                         }
                     } else {
-                        tokens.append(PatternToken.AnySequence)
+                        tokens.add(PatternToken.AnySequence)
                     }
                 case r'[' =>
                     if (i + 4 <= chars.size && chars[i + 1] == r'!') {
@@ -217,7 +217,7 @@ public struct Pattern {
                             case Some(j) =>
                                 let subChars = chars[i + 2..i + 3 + j]
                                 let cs = parseCharSpecifiers(subChars)
-                                tokens.append(PatternToken.AnyExcept(cs))
+                                tokens.add(PatternToken.AnyExcept(cs))
                                 i += 4 + j
                                 continue
                         }
@@ -227,7 +227,7 @@ public struct Pattern {
                             case Some(j) =>
                                 let subChars = chars[i + 1..i + 2 + j]
                                 let cs = parseCharSpecifiers(subChars)
-                                tokens.append(PatternToken.AnyWithin(cs))
+                                tokens.add(PatternToken.AnyWithin(cs))
                                 i += 3 + j
                                 continue
                         }
@@ -235,13 +235,12 @@ public struct Pattern {
 
                     throw PatternException(i, ERROR_INVALID_RANGE)
                 case c =>
-                    tokens.append(PatternToken.Char(c))
+                    tokens.add(PatternToken.Char(c))
                     i++
             }
         }
 
         this.original = pattern
-        this.tokens = tokens
         this.isRecursive = is_recursive
     }
 
@@ -397,7 +396,7 @@ func fillTodo(
 
     let add = {
         todo: ArrayList<(PathWrapper, Int64)>, nextPath: PathWrapper => if (idx + 1 == patterns.size) {
-            todo.append((nextPath, Int64.Max))
+            todo.add((nextPath, Int64.Max))
         } else {
             fillTodo(todo, patterns, idx + 1, nextPath, options)
         }
@@ -426,9 +425,9 @@ func fillTodo(
                 let dirs = ArrayList<PathWrapper>()
                 for (e in dirFiles) {
                     if (curDir) {
-                        dirs.append(PathWrapper(Path(e.path.fileName), e.isDirectory()))
+                        dirs.add(PathWrapper(Path(e.path.fileName), e.isDirectory()))
                     } else {
-                        dirs.append(PathWrapper(e.path, e.isDirectory()))
+                        dirs.add(PathWrapper(e.path, e.isDirectory()))
                     }
                 }
                 var children = dirs.iterator()
@@ -439,7 +438,7 @@ func fillTodo(
                 }
                 let cc = ArrayList<PathWrapper>()
                 for (c in children) {
-                    cc.append(c)
+                    cc.add(c)
                 }
                 cc.sortBy {
                     l: PathWrapper, r: PathWrapper => if (l.path.fileName > r.path.fileName) {
@@ -452,7 +451,7 @@ func fillTodo(
                 }
 
                 for (c in cc) {
-                    todo.append((c, idx))
+                    todo.add((c, idx))
                 }
 
                 if (!pattern.tokens.isEmpty() && pattern.tokens[0] == PatternToken.Char(r'.')) {
@@ -500,7 +499,7 @@ public class Paths <: Iterator<Path> {
                 return None
             }
 
-            let t = this.todo.remove(this.todo.size - 1)
+            let t = this.todo.remove(at: this.todo.size - 1)
             let path = t[0]
             var idx = t[1]
 
@@ -589,7 +588,7 @@ extend String {
         while (i < chars.size) {
             if (checker(chars[i])) {
                 if (start < i) {
-                    ret.append(this[start..i])
+                    ret.add(this[start..i])
                 }
                 start = i + 1
             }
@@ -597,7 +596,7 @@ extend String {
         }
 
         if (start < i) {
-            ret.append(this[start..i])
+            ret.add(this[start..i])
         }
 
         return ret.toArray()
@@ -646,11 +645,11 @@ public func globWith(pattern: String, options: MatchOptions): Paths {
     }
     let components = pattern[(min(skip, pattern.size))..].split(isSeparator)
     for (c in components) {
-        dirPatterns.append(Pattern(c))
+        dirPatterns.add(Pattern(c))
     }
 
     if (foundRoot && root.size == pattern.size) {
-        dirPatterns.append(Pattern(""))
+        dirPatterns.add(Pattern(""))
     }
 
     let lastIsSeparator = if (pattern.size > 0) {
