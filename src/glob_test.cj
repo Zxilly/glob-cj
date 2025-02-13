@@ -267,4 +267,11 @@ class PatternTests {
         let g2 = glob("src/*")
         @Assert(g2.next().isSome(), true)
     }
+
+    @TestCase
+    func testPatternEscape() {
+        let s = "_[_]_?_*_!_"
+        @Assert(Pattern.escape(s), "_[[]_[]]_[?]_[*]_!_")
+        @Assert(Pattern(Pattern.escape(s)).matches(s), true)
+    }
 }

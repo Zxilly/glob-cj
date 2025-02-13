@@ -343,6 +343,21 @@ public struct Pattern {
         }
         return ret.toString()
     }
+
+    public static func escape(s: String): String {
+        let escaped = StringBuilder()
+        for (c in s.runes()) {
+            match (c) {
+                case r'?' | r'*' | r'[' | r']' => 
+                    escaped.append('[')
+                    escaped.append(c)
+                    escaped.append(']')
+                
+                case c => escaped.append(c)
+            }
+        }
+        return escaped.toString()
+    }
 }
 
 func checkWindowsVerbatim(path: String): Bool {
