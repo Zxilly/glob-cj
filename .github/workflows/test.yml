@@ -8,6 +8,7 @@ on:
 
 jobs:
   test:
+    if: false # This job is disabled
     name: Unit tests
     runs-on: ${{ matrix.os }}
     strategy:

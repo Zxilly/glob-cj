@@ -1,5 +1,6 @@
 package glob
 
+import std.sort.sort
 import std.regex.Regex
 import std.collection.ArrayList
 import std.fs.{Directory, Path, FileInfo, FSException}
@@ -455,7 +456,8 @@ func fillTodo(
                 for (c in children) {
                     cc.add(c)
                 }
-                cc.sortBy {
+                
+                sort(cc, by: {
                     l: PathWrapper, r: PathWrapper => if (l.path.fileName > r.path.fileName) {
                         Ordering.GT
                     } else if (l.path.fileName < r.path.fileName) {
@@ -463,7 +465,7 @@ func fillTodo(
                     } else {
                         Ordering.EQ
                     }
-                }
+                })
 
                 for (c in cc) {
                     todo.add((c, idx))
