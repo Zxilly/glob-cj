@@ -1,7 +1,7 @@
 [dependencies]
 
 [package]
-  cjc-version = "0.59.6"
+  cjc-version = "0.60.5"
   compile-option = ""
   description = "适用于仓颉的 glob 库"
   link-option = ""
@@ -10,5 +10,5 @@
   override-compile-option = ""
   src-dir = ""
   target-dir = ""
-  version = "0.1.1"
+  version = "0.1.2"
   package-configuration = {}
